@@ -5,10 +5,11 @@ import ScorePageDynamic from '../score-dynamic/page'; // import the new dynamic 
 export default function FrontPage() {
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
-  const [bowType, setBowType] = useState('');
+  const [bowType, setBowType] = useState('Compound bow');
   const [distance, setDistance] = useState<number | ''>('');
   const [totalEnds, setTotalEnds] = useState<number | ''>('');
   const [started, setStarted] = useState(false);
+  
 
   function startScoring() {
     setStarted(true);
@@ -27,14 +28,25 @@ export default function FrontPage() {
            onChange={e => setName(e.target.value)}
            className="w-full max-w-sm border rounded-lg p-2 bg-white text-black"
            />
+        
+           <input
+           type="text"
+           placeholder="Surname"
+           value={surname}
+           onChange={e => setSurname(e.target.value)}
+           className="w-full max-w-sm border rounded-lg p-2 bg-white text-black"
+           />
+        
+            <select
+  value={bowType}
+  onChange={e => setBowType(e.target.value)}
+  className="w-full max-w-sm border rounded-lg p-2 bg-white text-black"
+>
+  <option value="Compound bow">Compound bow</option>
+  <option value="Recurve bow">Recurve bow</option>
+  <option value="Barebow">Barebow</option>
+</select>
 
-          <input
-            type="text"
-            placeholder="Bow Type"
-            value={bowType}
-            onChange={e => setBowType(e.target.value)}
-            className="w-full max-w-sm border rounded-lg p-2 bg-white text-black"
-          />
           <input
             type="number"
             placeholder="Distance (default 30m)"
