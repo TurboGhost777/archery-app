@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum BowType {
+  COMPOUND
+  RECURVE
+  BAREBOW
+}
+
+enum SessionType {
+  PRACTICE
+  TOURNAMENT
+}
+
+enum EventType {
+  OUTDOOR
+  INDOOR
+  THREE_D
+  DISA
+}
+
+model User {
+  id             String   @id @default(uuid())
+  username       String   @unique
+  passwordHash   String
+  name           String
+  surname        String
+  defaultBowType BowType
+  club           Club     @relation(fields: [clubId], references: [id])
+  clubId         String
+  createdAt      DateTime @default(now())
+
+  sessions       Session[]
+}
+
+model Club {
+  id      String @id @default(uuid())
+  name    String @unique
+  users   User[]
+}
+
+model Event {
+  id        String    @id @default(uuid())
+  name      String
+  type      EventType
+  location  String?
+  startDate DateTime
+  endDate   DateTime
+
+  sessions  Session[]
+}
+
+model Session {
+  id             String      @id @default(uuid())
+  sessionType    SessionType
+  user           User        @relation(fields: [userId], references: [id])
+  userId         String
+
+  event          Event?      @relation(fields: [eventId], references: [id])
+  eventId        String?
+
+  // SNAPSHOT DATA (CRITICAL)
+  archerName     String
+  archerSurname  String
+  clubName       String
+  bowType        BowType
+
+  distance       Int
+  totalEnds      Int
+  arrowsPerEnd   Int
+  completed      Boolean     @default(false)
+
+  createdAt      DateTime    @default(now())
+
+  ends           End[]
+}
+
+model End {
+  id        String  @id @default(uuid())
+  session   Session @relation(fields: [sessionId], references: [id])
+  sessionId String
+  endNumber Int
+
+  arrows    Arrow[]
+
+  @@unique([sessionId, endNumber])
+}
+
+model Arrow {
+  id          String @id @default(uuid())
+  end         End    @relation(fields: [endId], references: [id])
+  endId       String
+  arrowNumber Int
+  score       String
+
+  @@unique([endId, arrowNumber])
+}

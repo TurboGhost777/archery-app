@@ -1,21 +1,12 @@
 'use client';
+
 import { useState } from 'react';
+import { BowType } from '@prisma/client/wasm';
+import { ScorePageProps } from '../types/scorePageProps';
 
 type ArrowScore = 'M' | 'X' | number | null;
 
-interface ArcherInfo {
-  name: string;
-  surname: string;
-  bowType: string;
-  distance: number;
-  totalEnds: number;
-}
-
-interface ScorePageProps {
-  archer: ArcherInfo;
-}
-
-export default function ScorePage({ archer }: ScorePageProps) {
+export default function ScorePage({ archer, sessionId }: ScorePageProps) {
   const ARROWS_PER_END = 6;
   const [scores, setScores] = useState<ArrowScore[][]>(
     Array.from({ length: archer.totalEnds }, () =>
@@ -24,23 +15,29 @@ export default function ScorePage({ archer }: ScorePageProps) {
   );
   const [activeArrow, setActiveArrow] = useState<{ end: number; arrow: number } | null>(null);
 
-  // --- Scoring functions ---
+  // --- Helper functions ---
   function calculateArrowValue(score: ArrowScore): number {
-    if (score === null) return 0;
-    if (score === 'M') return 0;
+    if (score === null || score === 'M') return 0;
     if (score === 'X') return 10;
-    return score;
+    return score as number;
   }
 
   function calculateEndTotal(endIndex: number): number {
-    const end = scores[endIndex];
-    if (!end) return 0;
-    return end.reduce<number>((sum, s) => sum + calculateArrowValue(s), 0);
+    return scores[endIndex].reduce<number>((sum, s) => sum + calculateArrowValue(s), 0);
   }
 
   function calculateGrandTotal(): number {
-    return scores.reduce<number>((sum, _, endIndex) => sum + calculateEndTotal(endIndex), 0);
+    return scores.reduce((sum, _, endIndex) => sum + calculateEndTotal(endIndex), 0);
   }
+
+  function calculateEndTens(endIndex: number): number {
+  return scores[endIndex].filter(score => score === 10 || score === 'X').length;
+}
+
+function calculateEndXs(endIndex: number): number {
+  return scores[endIndex].filter(score => score === 'X').length;
+}
+
 
   function isEndComplete(endIndex: number): boolean {
     return scores[endIndex].every(score => score !== null);
@@ -48,23 +45,19 @@ export default function ScorePage({ archer }: ScorePageProps) {
 
   function setScore(endIndex: number, value: ArrowScore) {
     const updated = scores.map(end => [...end]);
-
     if (activeArrow) {
       updated[activeArrow.end][activeArrow.arrow] = value;
       setActiveArrow(null);
     } else {
       if (isEndComplete(endIndex)) return;
-
       const arrowIndex = updated[endIndex].findIndex(a => a === null);
       if (arrowIndex !== -1) updated[endIndex][arrowIndex] = value;
     }
-
     setScores(updated);
   }
 
   function undoLastArrow() {
     const updated = scores.map(end => [...end]);
-
     for (let e = scores.length - 1; e >= 0; e--) {
       for (let a = ARROWS_PER_END - 1; a >= 0; a--) {
         if (updated[e][a] !== null) {
@@ -86,68 +79,38 @@ export default function ScorePage({ archer }: ScorePageProps) {
     return '';
   }
 
-  function calculateEndCounts(endIndex: number) {
-  const end = scores[endIndex];
-  if (!end) return { tens: 0, xs: 0 };
-  let tens = 0;
-  let xs = 0;
-
-  for (const score of end) {
-    if (score === 'X') {
-      tens += 1;
-      xs += 1;
-    } else if (score === 10) {
-      tens += 1;
-    }
-  }
-
-  return { tens, xs };
-}
-
-function calculateGrandCounts() {
-  let totalTens = 0;
-  let totalXs = 0;
-
-  scores.forEach((_, endIndex) => {
-    const { tens, xs } = calculateEndCounts(endIndex);
-    totalTens += tens;
-    totalXs += xs;
-  });
-
-  return { totalTens, totalXs };
-}
-
   const scoreButtons: ArrowScore[] = ['M', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'X'];
+  const tens = scores.reduce((sum, _, endIndex) => sum + calculateEndTens(endIndex), 0);
+  const xs = scores.reduce((sum, _, endIndex) => sum + calculateEndXs(endIndex), 0);
 
-  // --- Render scoring page ---
+  // --- Render ---
   return (
     <div className="min-h-screen bg-gray-200 p-4 text-black">
       <h1 className="text-2xl font-bold text-center mb-2">
         {archer.name} {archer.surname} - {archer.bowType} - {archer.distance}m
       </h1>
 
-    <div className="text-center mb-4">
-  {(() => {
-    const { totalTens, totalXs } = calculateGrandCounts();
-    return (
-      <p className="text-lg font-semibold">
-        Total Score: {calculateGrandTotal()} / {scores.length * ARROWS_PER_END * 10} | 
-        10s: {totalTens} | Xs: {totalXs}
-      </p>
-    );
-  })()}
+      {/* Cumulative counters */}
+      <div className="text-center mb-4">
+        <p className="text-lg font-semibold">Total Score: {calculateGrandTotal()}</p>
+        <p className="text-lg font-semibold">10s (including X): {tens}</p>
+        <p className="text-lg font-semibold">Xs: {xs}</p>
+        <button
+          onClick={undoLastArrow}
+          className="mt-2 px-4 py-2 bg-gray-700 text-white rounded-lg"
+        >
+          Undo Last Arrow
+        </button>
+      </div>
 
-  <button
-    onClick={undoLastArrow}
-    className="mt-2 px-4 py-2 bg-gray-700 text-white rounded-lg"
-  >
-    Undo Last Arrow
-  </button>
-</div>
-
+      {/* End scoring */}
       <div className="space-y-4">
         {scores.map((end, endIndex) => {
           const complete = isEndComplete(endIndex);
+
+          // Count 10s/Xs for this end
+          const endTens = end.filter(a => a === 10 || a === 'X').length;
+          const endXs = end.filter(a => a === 'X').length;
 
           return (
             <div
@@ -155,19 +118,17 @@ function calculateGrandCounts() {
               className={`bg-white rounded-xl shadow p-4 ${complete ? 'opacity-70' : ''}`}
             >
               <div className="flex justify-between mb-2">
-  <h2 className="font-bold text-lg">End {endIndex + 1}</h2>
-  {(() => {
-    const { tens, xs } = calculateEndCounts(endIndex);
-    return (
-      <span className="font-semibold">
-        End Total: {calculateEndTotal(endIndex)} | 10s: {tens} | Xs: {xs}
-      </span>
-    );
-  })()}
-</div>
+                <h2 className="font-bold text-lg">End {endIndex + 1}</h2>
+                <span className="font-semibold">End Total: {calculateEndTotal(endIndex)}</span>
+              </div>
+
+              <div className="flex justify-between mb-2 text-sm">
+                <span>10s (including X): {endTens}</span>
+                <span>Xs: {endXs}</span>
+              </div>
 
               <div className="grid grid-cols-6 gap-2 mb-3">
-                {scores[endIndex].map((arrow, arrowIndex) => (
+                {end.map((arrow, arrowIndex) => (
                   <button
                     key={arrowIndex}
                     onClick={() => setActiveArrow({ end: endIndex, arrow: arrowIndex })}
@@ -186,9 +147,9 @@ function calculateGrandCounts() {
                 {scoreButtons.map(value => (
                   <button
                     key={String(value)}
-                    onClick={() => setScore(endIndex, value as ArrowScore)}
+                    onClick={() => setScore(endIndex, value)}
                     disabled={complete && !activeArrow}
-                    className={`py-2 rounded-lg font-bold text-sm ${scoreButtonClass(value as ArrowScore)} ${
+                    className={`py-2 rounded-lg font-bold text-sm ${scoreButtonClass(value)} ${
                       complete && !activeArrow ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
