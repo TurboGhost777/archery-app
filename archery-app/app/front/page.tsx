@@ -1,7 +1,7 @@
 'use client';
 
 import ScorePage from '../score-dynamic/page';
-import { BowType } from '@prisma/client';
+import { BowType } from '../types/bow';
 
 // This is your front page component
 export default function FrontPage() {
@@ -9,7 +9,7 @@ export default function FrontPage() {
   const dummyArcher = {
     name: 'Test',          // <-- matches archer.name
     surname: 'User',       // <-- matches archer.surname
-    bowType: BowType.COMPOUND, // <-- matches archer.bowType
+    bowType: 'COMPOUND' as BowType, // <-- matches archer.bowType
     distance: 18,          // <-- matches archer.distance
     totalEnds: 6,          // <-- matches archer.totalEnds
   };

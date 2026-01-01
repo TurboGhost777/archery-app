@@ -1,4 +1,4 @@
-import { BowType } from '@prisma/client/wasm';
+import type { BowType } from '../types/bow';
 
 export type ScorePageProps = {
   archer: {
