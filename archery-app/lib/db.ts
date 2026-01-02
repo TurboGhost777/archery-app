@@ -8,9 +8,9 @@ export class ArcheryDB extends Dexie {
   constructor() {
     super('archery-db');
 
-    this.version(1).stores({
-      sessions: 'id, createdAt, synced',
-      scores: '[sessionId+endIndex+arrowIndex], sessionId',
+this.version(2).stores({
+  sessions: 'id, createdAt, synced, completed',
+  scores: '[sessionId+endIndex+arrowIndex], sessionId',
     });
   }
 }

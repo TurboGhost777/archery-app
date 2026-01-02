@@ -17,4 +17,5 @@ export type StoredSession = {
   createdAt: number;
   updatedAt: number;
   synced: boolean;
+  completed: boolean; // New field to indicate if the session is completed
 };
