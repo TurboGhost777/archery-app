@@ -67,26 +67,32 @@ export default function ScorePage() {
   }, [session]);
 
   /* ---------------- Resume saved arrows ---------------- */
-  useEffect(() => {
-    if (!sessionId || !scores.length) return;
+ useEffect(() => {
+  if (!sessionId || !scores.length) return;
 
-    async function resume() {
-      const stored = await loadSessionScores(sessionId!); // <-- assert non-null
-      if (!stored.length) return;
+  async function resume() {
+    const stored = await loadSessionScores(sessionId!); // ArrowScore[][]
 
-      setScores(prev => {
-        const copy = prev.map(end => [...end]);
-        for (const s of stored) {
-          if (copy[s.endIndex]) {
-            copy[s.endIndex][s.arrowIndex] = s.value;
-          }
+    if (!stored.length) return;
+
+    setScores(prev => {
+      // Make a deep copy of prev
+      const copy = prev.map(end => [...end]);
+
+      // Copy stored scores
+      for (let e = 0; e < stored.length; e++) {
+        for (let a = 0; a < stored[e].length; a++) {
+          copy[e][a] = stored[e][a];
         }
-        return copy;
-      });
-    }
+      }
 
-    resume();
-  }, [sessionId, scores.length]);
+      return copy;
+    });
+  }
+
+  resume();
+}, [sessionId, scores.length]);
+
 
   /* ---------------- Helpers ---------------- */
   function arrowValue(score: ArrowScore): number {

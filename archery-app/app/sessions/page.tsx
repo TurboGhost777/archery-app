@@ -65,30 +65,15 @@ export default function SessionsPage() {
         )}
       </div>
 
-      <div className="text-center mt-6">
-        <button
-          onClick={async () => {
-            // Create a new session with a random ID
-            const id = crypto.randomUUID();
-            await db.sessions.put({
-              id,
-              archerName: 'New',
-              archerSurname: 'Archer',
-              bowType: 'COMPOUND',
-              distance: 18,
-              totalEnds: 12,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-              synced: false,
-              completed: false,
-            });
-            router.push(`/score-dynamic?sessionId=${id}`);
-          }}
-          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg"
-        >
-          Start New Session
-        </button>
-      </div>
+    <div className="text-center mt-6">
+  <button
+    onClick={() => router.push('/sessions/new')}
+    className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg"
+  >
+    Start New Session
+  </button>
+</div>
+
     </div>
   );
 }

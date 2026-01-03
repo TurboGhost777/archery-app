@@ -1,67 +1,82 @@
 import { db } from './db';
-import type { StoredSession, StoredScore, ArrowScore } from '../app/types/score';
+import type { StoredSession, ArrowScore } from '../app/types/score';
 
-export async function createSession(session: StoredSession) {
-  const existing = await db.sessions.get(session.id);
-  if (!existing) {
-    await db.sessions.put(session);
-  }
+/* ---------------- Create a new session ---------------- */
+export async function createSession(params: {
+  archerName?: string;
+  archerSurname?: string;
+  bowType?: 'COMPOUND' | 'RECURVE' | 'BAREBOW';
+  distance: number;
+  totalEnds: number;
+}) {
+  const id = crypto.randomUUID();
+
+  const session: StoredSession = {
+    id,
+    archerName: params.archerName ?? 'New',
+    archerSurname: params.archerSurname ?? 'Archer',
+    bowType: params.bowType ?? 'COMPOUND',
+    distance: params.distance,
+    totalEnds: params.totalEnds,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    synced: false,
+    completed: false,
+    scores: Array.from({ length: params.totalEnds }, () =>
+      Array.from({ length: 6 }, () => null)
+    ),
+  };
+
+  await db.sessions.add(session);
+  return id;
 }
 
+/* ---------------- Save an arrow score ---------------- */
 export async function saveScore(
   sessionId: string,
   endIndex: number,
   arrowIndex: number,
   value: ArrowScore
 ) {
-  await db.scores.put({
-    sessionId,
-    endIndex,
-    arrowIndex,
-    value,
-  });
+  const session = await db.sessions.get(sessionId);
+  if (!session) return;
 
-  await db.sessions.update(sessionId, {
-    updatedAt: Date.now(),
-    synced: false,
-  });
+  const updated = session.scores.map(end => [...end]);
+  updated[endIndex][arrowIndex] = value;
+
+  session.scores = updated;
+  session.updatedAt = Date.now();
+
+  await db.sessions.put(session);
 }
 
-export async function loadSessionScores(sessionId: string) {
-  return db.scores.where('sessionId').equals(sessionId).toArray();
+/* ---------------- Load all scores for a session ---------------- */
+export async function loadSessionScores(sessionId: string): Promise<ArrowScore[][]> {
+  const session = await db.sessions.get(sessionId);
+  return session?.scores ?? [];
 }
 
-export async function deleteScore(
-  sessionId: string,
-  endIndex: number,
-  arrowIndex: number
-) {
-  await db.scores
-    .where({ sessionId, endIndex, arrowIndex })
-    .delete();
+/* ---------------- Delete a specific arrow ---------------- */
+export async function deleteScore(sessionId: string, endIndex: number, arrowIndex: number) {
+  const session = await db.sessions.get(sessionId);
+  if (!session) return;
 
-  await db.sessions.update(sessionId, {
-    updatedAt: Date.now(),
-    synced: false,
-  });
+  const updated = session.scores.map(end => [...end]);
+  updated[endIndex][arrowIndex] = null;
+
+  session.scores = updated;
+  session.updatedAt = Date.now();
+
+  await db.sessions.put(session);
 }
 
+/* ---------------- Mark a session as completed ---------------- */
 export async function completeSession(sessionId: string) {
-  await db.sessions.update(sessionId, {
-    completed: true,
-    updatedAt: Date.now(),
-    synced: false,
-  });
-}
+  const session = await db.sessions.get(sessionId);
+  if (!session) return;
 
-export async function deleteSession(sessionId: string) {
-  await db.scores.where('sessionId').equals(sessionId).delete();
-  await db.sessions.delete(sessionId);
-}
+  session.completed = true;
+  session.updatedAt = Date.now();
 
-export async function listSessions() {
-  return db.sessions
-    .orderBy('createdAt')
-    .reverse()
-    .toArray();
+  await db.sessions.put(session);
 }

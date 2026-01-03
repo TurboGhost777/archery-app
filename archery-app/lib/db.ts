@@ -1,16 +1,14 @@
 import Dexie, { Table } from 'dexie';
-import type { StoredSession, StoredScore } from '../app/types/score';
+import type { StoredSession } from '../app/types/score';
 
 export class ArcheryDB extends Dexie {
   sessions!: Table<StoredSession, string>;
-  scores!: Table<StoredScore, [string, number, number]>;
 
   constructor() {
     super('archery-db');
 
-this.version(2).stores({
-  sessions: 'id, createdAt, synced, completed',
-  scores: '[sessionId+endIndex+arrowIndex], sessionId',
+    this.version(2).stores({
+      sessions: 'id, createdAt, synced, completed',
     });
   }
 }
