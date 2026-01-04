@@ -116,6 +116,10 @@ export default function ScorePage() {
     );
   }
 
+  function isSessionComplete(): boolean {
+  return scores.every(end => end.every(a => a !== null));
+}
+
   function endTens(endIndex: number): number {
     return scores[endIndex].filter(a => a === 10 || a === 'X').length;
   }
@@ -194,6 +198,12 @@ export default function ScorePage() {
       <div className="text-center mb-4 space-x-2">
         <p className="text-lg font-semibold">Total: {grandTotal()}</p>
 
+      {!isSessionComplete() && (
+  <p className="text-sm text-red-600 mt-2">
+    ⚠️ Complete all arrows before ending the session
+  </p>
+)}
+
         <button
           onClick={undoLastArrow}
           disabled={isReadOnly}
@@ -211,15 +221,22 @@ export default function ScorePage() {
 
         {!session.completed && (
           <button
-            onClick={async () => {
-              if (!confirm('End this session? This cannot be undone.')) return;
-              await completeSession(sessionId as string);
-              router.push('/sessions');
-            }}
-            className="mt-2 px-4 py-2 bg-green-700 text-white rounded-lg"
-          >
-            End Session
-          </button>
+  disabled={!isSessionComplete()}
+  onClick={async () => {
+    if (!isSessionComplete()) return;
+
+    await completeSession(sessionId!);
+    router.push('/sessions');
+  }}
+  className={`mt-2 px-4 py-2 rounded-lg text-white ${
+    isSessionComplete()
+      ? 'bg-green-700'
+      : 'bg-gray-400 cursor-not-allowed'
+  }`}
+>
+  End Session
+</button>
+
         )}
       </div>
             <div className="space-y-4">
