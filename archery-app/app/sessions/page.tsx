@@ -34,6 +34,15 @@ export default function SessionsPage() {
     <div className="min-h-screen bg-gray-200 p-4 text-black">
       <h1 className="text-2xl font-bold mb-4 text-center">Sessions</h1>
 
+        <div className="text-center mt-6">
+        <button
+          onClick={() => router.push('/stats')}
+          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+        >
+          View Stats
+        </button>
+      </div>
+
       <div className="space-y-2">
         {sessions.map(session => (
           <div

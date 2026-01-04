@@ -8,6 +8,7 @@ export async function createSession(params: {
   bowType?: 'COMPOUND' | 'RECURVE' | 'BAREBOW';
   distance: number;
   totalEnds: number;
+  sessionType?: 'PRACTICE' | 'TOURNAMENT';
 }) {
   const id = crypto.randomUUID();
 
@@ -22,12 +23,13 @@ export async function createSession(params: {
     updatedAt: Date.now(),
     synced: false,
     completed: false,
+    sessionType: params.sessionType ?? 'PRACTICE',
     scores: Array.from({ length: params.totalEnds }, () =>
       Array.from({ length: 6 }, () => null)
     ),
   };
 
-  await db.sessions.add(session);
+  await db.sessions.add(session); 
   return id;
 }
 
@@ -41,6 +43,7 @@ export async function saveScore(
   const session = await db.sessions.get(sessionId);
   if (!session) return;
 
+  // Deep copy scores
   const updated = session.scores.map(end => [...end]);
   updated[endIndex][arrowIndex] = value;
 

@@ -9,12 +9,16 @@ export default function NewSessionPage() {
 
   const [distance, setDistance] = useState(70);
   const [totalEnds, setTotalEnds] = useState(6);
+  const [sessionType, setSessionType] = useState<'PRACTICE' | 'TOURNAMENT'>('PRACTICE');
+
 
   const handleStart = async () => {
     const sessionId = await createSession({
       distance,
-      totalEnds,   // stays the same
-      bowType: 'COMPOUND',  // stays the same
+      totalEnds,   // stays the same// stays the same
+      bowType: 'COMPOUND', 
+      sessionType: sessionType ?? 'PRACTICE',
+// stays the same
     });
 
     router.push(`/score-dynamic?sessionId=${sessionId}`);
@@ -37,6 +41,23 @@ export default function NewSessionPage() {
           className="w-full border rounded-lg p-2 bg-white text-black"
         />
       </div>
+
+      <div>
+  <label className="block text-black mb-1">
+    Session Type
+  </label>
+  <select
+    value={sessionType}
+    onChange={e =>
+      setSessionType(e.target.value as 'PRACTICE' | 'TOURNAMENT')
+    }
+    className="w-full border rounded-lg p-2 bg-white text-black"
+  >
+    <option value="PRACTICE">Practice</option>
+    <option value="TOURNAMENT">Tournament</option>
+  </select>
+</div>
+
 
       <div>
         <label className="block text-black mb-1">
