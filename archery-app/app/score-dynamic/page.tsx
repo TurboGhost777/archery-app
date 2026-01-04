@@ -15,11 +15,11 @@ type ArrowScore = 'M' | 'X' | number | null;
 
 const ARROWS_PER_END = 6;
 
-
-           /* ---------------- Score Button Colors ---------------- */
+/* ---------------- Score Button Colors ---------------- */
 function scoreButtonClass(value: ArrowScore) {
   if (value === 'M') return 'bg-red-800 text-white';
-  if (value === 'X' || value === 10 || value === 9) return 'bg-yellow-400 text-black';
+  if (value === 'X' || value === 10 || value === 9)
+    return 'bg-yellow-400 text-black';
   if (value === 8 || value === 7) return 'bg-red-500 text-black';
   if (value === 6 || value === 5) return 'bg-blue-500 text-black';
   if (value === 4 || value === 3) return 'bg-black text-white';
@@ -30,7 +30,8 @@ function scoreButtonClass(value: ArrowScore) {
 export default function ScorePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('sessionId'); // string | null
+  const sessionId = searchParams.get('sessionId');
+
   const [session, setSession] = useState<StoredSession | null>(null);
   const [scores, setScores] = useState<ArrowScore[][]>([]);
   const [activeArrow, setActiveArrow] =
@@ -43,8 +44,10 @@ export default function ScorePage() {
       return;
     }
 
+    const id = sessionId as string;
+
     async function load() {
-      const s = await db.sessions.get(sessionId!); // <-- assert non-null
+      const s = await db.sessions.get(id);
       if (!s) {
         router.push('/sessions');
         return;
@@ -67,32 +70,30 @@ export default function ScorePage() {
   }, [session]);
 
   /* ---------------- Resume saved arrows ---------------- */
- useEffect(() => {
-  if (!sessionId || !scores.length) return;
+  useEffect(() => {
+    if (!sessionId || !scores.length) return;
 
-  async function resume() {
-    const stored = await loadSessionScores(sessionId!); // ArrowScore[][]
+    const id = sessionId as string;
 
-    if (!stored.length) return;
+    async function resume() {
+      const stored = await loadSessionScores(id);
+      if (!stored.length) return;
 
-    setScores(prev => {
-      // Make a deep copy of prev
-      const copy = prev.map(end => [...end]);
+      setScores(prev => {
+        const copy = prev.map(end => [...end]);
 
-      // Copy stored scores
-      for (let e = 0; e < stored.length; e++) {
-        for (let a = 0; a < stored[e].length; a++) {
-          copy[e][a] = stored[e][a];
+        for (let e = 0; e < stored.length; e++) {
+          for (let a = 0; a < stored[e].length; a++) {
+            copy[e][a] = stored[e][a];
+          }
         }
-      }
 
-      return copy;
-    });
-  }
+        return copy;
+      });
+    }
 
-  resume();
-}, [sessionId, scores.length]);
-
+    resume();
+  }, [sessionId, scores.length]);
 
   /* ---------------- Helpers ---------------- */
   function arrowValue(score: ArrowScore): number {
@@ -109,7 +110,10 @@ export default function ScorePage() {
   }
 
   function grandTotal(): number {
-    return scores.reduce((s, _, i) => s + endTotal(i), 0);
+    return scores.reduce<number>(
+      (sum, _, i) => sum + endTotal(i),
+      0
+    );
   }
 
   function endTens(endIndex: number): number {
@@ -124,8 +128,11 @@ export default function ScorePage() {
     return scores[endIndex].every(a => a !== null);
   }
 
+  const isReadOnly = session?.completed === true;
+
   function setScore(endIndex: number, value: ArrowScore) {
-    if (!sessionId) return;
+    if (!sessionId || isReadOnly) return;
+    const id = sessionId as string;
 
     const updated = scores.map(end => [...end]);
 
@@ -144,14 +151,15 @@ export default function ScorePage() {
     }
 
     if (a !== -1) {
-      saveScore(sessionId!, e, a, value); // <-- assert non-null
+      saveScore(id, e, a, value);
     }
 
     setScores(updated);
   }
 
   async function undoLastArrow() {
-    if (!sessionId) return;
+    if (!sessionId || isReadOnly) return;
+    const id = sessionId as string;
 
     const updated = scores.map(end => [...end]);
 
@@ -160,7 +168,7 @@ export default function ScorePage() {
         if (updated[e][a] !== null) {
           updated[e][a] = null;
           setScores(updated);
-          await deleteScore(sessionId!, e, a); // <-- assert non-null
+          await deleteScore(id, e, a);
           return;
         }
       }
@@ -168,11 +176,7 @@ export default function ScorePage() {
   }
 
   if (!session) {
-    return (
-      <div className="p-4 text-center text-black">
-        Loading session...
-      </div>
-    );
+    return <div className="p-4 text-center text-black">Loading session...</div>;
   }
 
   const scoreButtons: ArrowScore[] = [
@@ -183,7 +187,8 @@ export default function ScorePage() {
   return (
     <div className="min-h-screen bg-gray-200 p-4 text-black">
       <h1 className="text-2xl font-bold text-center mb-2">
-        {session.archerName} {session.archerSurname} – {session.bowType} – {session.distance}m
+        {session.archerName} {session.archerSurname} – {session.bowType} –{' '}
+        {session.distance}m
       </h1>
 
       <div className="text-center mb-4 space-x-2">
@@ -191,7 +196,8 @@ export default function ScorePage() {
 
         <button
           onClick={undoLastArrow}
-          className="mt-2 px-4 py-2 bg-gray-700 text-white rounded-lg"
+          disabled={isReadOnly}
+          className="mt-2 px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-40"
         >
           Undo
         </button>
@@ -203,18 +209,20 @@ export default function ScorePage() {
           Exit
         </button>
 
-        <button
-          onClick={async () => {
-            await completeSession(sessionId!); // <-- assert non-null
-            router.push('/sessions');
-          }}
-          className="mt-2 px-4 py-2 bg-green-700 text-white rounded-lg"
-        >
-          Save & Exit
-        </button>
+        {!session.completed && (
+          <button
+            onClick={async () => {
+              if (!confirm('End this session? This cannot be undone.')) return;
+              await completeSession(sessionId as string);
+              router.push('/sessions');
+            }}
+            className="mt-2 px-4 py-2 bg-green-700 text-white rounded-lg"
+          >
+            End Session
+          </button>
+        )}
       </div>
-
-      <div className="space-y-4">
+            <div className="space-y-4">
         {scores.map((end, endIndex) => (
           <div
             key={endIndex}
@@ -230,21 +238,19 @@ export default function ScorePage() {
             </div>
 
             <div className="flex justify-between mb-2 text-sm">
-              <span>10s (including X): {endTens(endIndex)}</span>
+              <span>10s: {endTens(endIndex)}</span>
               <span>Xs: {endXs(endIndex)}</span>
-              <div className="text-xs">
-                {isEndComplete(endIndex) ? (
-                  <span className="text-green-600 font-bold">Completed</span>
-                ) : (
-                  <span className="text-orange-600 font-bold">In Progress</span>
-                )}
-              </div>
+              <span className="font-bold">
+                {isEndComplete(endIndex) ? 'Completed' : 'In Progress'}
+              </span>
             </div>
 
+            {/* Arrow slots */}
             <div className="grid grid-cols-6 gap-2 mb-3">
               {end.map((arrow, arrowIndex) => (
                 <button
                   key={arrowIndex}
+                  disabled={isReadOnly}
                   onClick={() =>
                     setActiveArrow({ end: endIndex, arrow: arrowIndex })
                   }
@@ -260,21 +266,24 @@ export default function ScorePage() {
               ))}
             </div>
 
-<div className="grid grid-cols-6 gap-2">
-  {scoreButtons.map(v => (
-    <button
-      key={String(v)}
-      onClick={() => setScore(endIndex, v)}
-      className={`py-2 rounded-lg font-bold ${scoreButtonClass(v)}`}
-    >
-      {v}
-    </button>
-  ))}
-</div>
-
+            {/* Score buttons */}
+            {!isReadOnly && (
+              <div className="grid grid-cols-6 gap-2">
+                {scoreButtons.map(v => (
+                  <button
+                    key={String(v)}
+                    onClick={() => setScore(endIndex, v)}
+                    className={`py-2 rounded-lg font-bold ${scoreButtonClass(v)}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
+
     </div>
   );
 }
