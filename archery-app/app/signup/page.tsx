@@ -10,8 +10,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [archerName, setArcherName] = useState('');
   const [archerSurname, setArcherSurname] = useState('');
+
   const [age, setAge] = useState<number | ''>('');
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | ''>('');
+
+  /* ----- NEW FIELDS ----- */
+  const [club, setClub] = useState('');
+  const [email, setEmail] = useState('');
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -21,7 +26,6 @@ export default function SignupPage() {
           Create your account
         </h1>
 
-        {/* ---------- All inputs in ONE column ---------- */}
         <div className="grid grid-cols-1 gap-3 mb-4">
 
           <input
@@ -56,6 +60,24 @@ export default function SignupPage() {
             className="w-full border rounded-lg p-2 bg-white text-black"
           />
 
+          {/* ----- NEW CLUB INPUT ----- */}
+          <input
+            type="text"
+            placeholder="Club Name"
+            value={club}
+            onChange={e => setClub(e.target.value)}
+            className="w-full border rounded-lg p-2 bg-white text-black"
+          />
+
+          {/* ----- NEW EMAIL INPUT ----- */}
+          <input
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="w-full border rounded-lg p-2 bg-white text-black"
+          />
+
           <input
             type="number"
             placeholder="Age"
@@ -66,7 +88,6 @@ export default function SignupPage() {
             className="w-full border rounded-lg p-2 bg-white text-black"
           />
 
-          {/* ---------- Gender Dropdown ---------- */}
           <select
             value={gender}
             onChange={e => setGender(e.target.value as any)}
@@ -79,12 +100,13 @@ export default function SignupPage() {
 
           <button
             onClick={() => {
-              // TEMP LOGIC ONLY FOR PHASE 1
               console.log('Signup clicked', {
                 username,
                 password,
                 archerName,
                 archerSurname,
+                club,
+                email,
                 age,
                 gender,
               });
@@ -96,7 +118,6 @@ export default function SignupPage() {
 
         </div>
 
-        {/* ---------- Smaller navigation buttons ---------- */}
         <div className="flex justify-between text-sm">
 
           <button

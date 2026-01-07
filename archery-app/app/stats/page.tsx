@@ -4,30 +4,25 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import type { StoredSession, ArrowScore } from '../types/score';
+import { computeFromScores } from '../types/score';
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 const DISTANCES = [18, 20, 30, 50, 70, 90];
-
-/* ---------------- Helpers ---------------- */
-function arrowValue(score: ArrowScore): number {
-  if (score === null || score === 'M') return 0;
-  if (score === 'X') return 10;
-  return score;
-}
-
-function isTenOrX(score: ArrowScore): boolean {
-  return score === 10 || score === 'X';
-}
-
-type DistanceStats = {
-  totalScore: number;
-  totalArrows: number;
-};
 
 export default function StatsPage() {
   const router = useRouter();
 
   const [darkMode, setDarkMode] = useState(true);
-
   const [sessions, setSessions] = useState<StoredSession[]>([]);
   const [archerName, setArcherName] = useState('');
   const [archerSurname, setArcherSurname] = useState('');
@@ -37,6 +32,12 @@ export default function StatsPage() {
   const [tournamentStats, setTournamentStats] = useState<Record<number, number>>({});
   const [overallAverage, setOverallAverage] = useState(0);
   const [tenXPercent, setTenXPercent] = useState(0);
+  const [bestEndPractice, setBestEndPractice] = useState(0);
+  const [bestEndTournament, setBestEndTournament] = useState(0);
+
+  const [xChartData, setXChartData] = useState<
+    { distance: number; Practice: number; Tournament: number }[]
+  >([]);
 
   useEffect(() => {
     async function load() {
@@ -48,33 +49,41 @@ export default function StatsPage() {
       setArcherSurname(all[0].archerSurname);
       setBowType(all[0].bowType);
 
-      setPracticeStats(computeStats(all.filter(s => s.sessionType === 'PRACTICE')));
-      setTournamentStats(computeStats(all.filter(s => s.sessionType === 'TOURNAMENT')));
+      const practice = all.filter(s => s.sessionType === 'PRACTICE');
+      const tournament = all.filter(s => s.sessionType === 'TOURNAMENT');
+
+      setPracticeStats(computeDistanceAverages(practice));
+      setTournamentStats(computeDistanceAverages(tournament));
+
       setOverallAverage(computeOverallAverage(all));
       setTenXPercent(computeTenXPercentage(all));
+
+      setBestEndPractice(computeBestEnd(practice));
+      setBestEndTournament(computeBestEnd(tournament));
+
+      setXChartData(computeXChartData(practice, tournament));
     }
 
     load();
   }, []);
 
-  function computeStats(sessions: StoredSession[]): Record<number, number> {
-    const stats: Record<number, DistanceStats> = {};
-    DISTANCES.forEach(d => (stats[d] = { totalScore: 0, totalArrows: 0 }));
+  /* ---------------- Helpers ---------------- */
+
+  function computeDistanceAverages(sessions: StoredSession[]): Record<number, number> {
+    const stats: Record<number, { total: number; arrows: number }> = {};
+    DISTANCES.forEach(d => (stats[d] = { total: 0, arrows: 0 }));
 
     sessions.forEach(session => {
       if (!stats[session.distance]) return;
-      session.scores.forEach(end =>
-        end.forEach(arrow => {
-          stats[session.distance].totalScore += arrowValue(arrow);
-          stats[session.distance].totalArrows++;
-        })
-      );
+      const computed = computeFromScores(session);
+      stats[session.distance].total += computed.totalScore;
+      stats[session.distance].arrows += session.totalEnds * 6;
     });
 
     const averages: Record<number, number> = {};
     DISTANCES.forEach(d => {
       const s = stats[d];
-      averages[d] = s.totalArrows ? +(s.totalScore / s.totalArrows).toFixed(2) : 0;
+      averages[d] = s.arrows ? +(s.total / s.arrows).toFixed(2) : 0;
     });
 
     return averages;
@@ -84,34 +93,52 @@ export default function StatsPage() {
     let total = 0;
     let arrows = 0;
 
-    sessions.forEach(s =>
-      s.scores.forEach(end =>
-        end.forEach(a => {
-          total += arrowValue(a);
-          arrows++;
-        })
-      )
-    );
+    sessions.forEach(session => {
+      const computed = computeFromScores(session);
+      total += computed.totalScore;
+      arrows += session.totalEnds * 6;
+    });
 
     return arrows ? +(total / arrows).toFixed(2) : 0;
   }
 
   function computeTenXPercentage(sessions: StoredSession[]): number {
-    let tens = 0;
+    let xCount = 0;
     let arrows = 0;
 
-    sessions.forEach(s =>
-      s.scores.forEach(end =>
-        end.forEach(a => {
-          if (a !== null) {
-            arrows++;
-            if (isTenOrX(a)) tens++;
-          }
-        })
-      )
-    );
+    sessions.forEach(session => {
+      const computed = computeFromScores(session);
+      xCount += computed.xCount;
+      arrows += session.totalEnds * 6;
+    });
 
-    return arrows ? +((tens / arrows) * 100).toFixed(1) : 0;
+    return arrows ? +((xCount / arrows) * 100).toFixed(1) : 0;
+  }
+
+  function computeBestEnd(sessions: StoredSession[]): number {
+    let best = 0;
+    sessions.forEach(session => {
+      const computed = computeFromScores(session);
+      if (computed.bestEnd > best) best = computed.bestEnd;
+    });
+    return best;
+  }
+
+  function computeXChartData(
+    practice: StoredSession[],
+    tournament: StoredSession[]
+  ): { distance: number; Practice: number; Tournament: number }[] {
+    return DISTANCES.map(d => {
+      const practiceX = practice
+        .filter(s => s.distance === d)
+        .reduce((sum, s) => sum + computeFromScores(s).xCount, 0);
+
+      const tournamentX = tournament
+        .filter(s => s.distance === d)
+        .reduce((sum, s) => sum + computeFromScores(s).xCount, 0);
+
+      return { distance: d, Practice: practiceX, Tournament: tournamentX };
+    });
   }
 
   function bestDistance(stats: Record<number, number>): number | null {
@@ -175,11 +202,11 @@ export default function StatsPage() {
       </div>
 
       {/* Tables */}
-      <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6">
+      <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6 mb-8">
         {/* Practice */}
         <div className="bg-white text-black rounded-2xl shadow p-5">
           <h2 className="text-xl font-bold mb-3 text-blue-700">
-            Practice (Best: {bestPractice ?? '-'}m)
+            Practice (Best End: {bestEndPractice}, Best Distance: {bestPractice ?? '-'}m)
           </h2>
 
           {DISTANCES.map(d => (
@@ -198,7 +225,7 @@ export default function StatsPage() {
         {/* Tournament */}
         <div className="bg-white text-black rounded-2xl shadow p-5">
           <h2 className="text-xl font-bold mb-3 text-red-700">
-            Tournament (Best: {bestTournament ?? '-'}m)
+            Tournament (Best End: {bestEndTournament}, Best Distance: {bestTournament ?? '-'}m)
           </h2>
 
           {DISTANCES.map(d => (
@@ -213,6 +240,22 @@ export default function StatsPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Xs Chart */}
+      <div className="max-w-5xl mx-auto mt-8 bg-white p-5 rounded-2xl shadow text-black">
+        <h2 className="text-xl font-bold mb-3 text-indigo-700">Xs Per Distance</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={xChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="distance" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="Practice" fill="#3b82f6" />
+            <Bar dataKey="Tournament" fill="#ef4444" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
