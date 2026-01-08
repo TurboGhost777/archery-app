@@ -1,15 +1,9 @@
 import Dexie, { Table } from 'dexie';
-
-/* keep existing session type */
 import type { StoredSession } from '../app/types/score';
 
-/* ---------- ADD THIS IMPORT ---------- */
-import type { StoredScore } from '../app/types/score';
-
-/* -------- USER INTERFACE (same as yours) -------- */
+/* -------- USER -------- */
 export interface User {
   id?: number;
-
   username: string;
   password: string;
 
@@ -25,24 +19,17 @@ export interface User {
   createdAt: number;
 }
 
-/* -------- EXTEND DB -------- */
+/* -------- DB -------- */
 export class ArcheryDB extends Dexie {
   sessions!: Table<StoredSession, string>;
-
-  /* ---------- NEW TABLE ---------- */
-  scores!: Table<StoredScore, [string, number, number]>;
-
   users!: Table<User, number>;
 
   constructor() {
     super('archery-db');
 
+    /* 🔴 VERSION BUMP REQUIRED */
     this.version(3).stores({
-      sessions: 'id, createdAt, synced, completed',
-
-      /* ---------- ADD STORE ---------- */
-      scores: '[sessionId+endIndex+arrowIndex], sessionId',
-
+      sessions: 'id, userId, createdAt, synced, completed',
       users: '++id, username, email, club, gender, createdAt',
     });
   }

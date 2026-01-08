@@ -1,150 +1,91 @@
-import { db } from './db';
-import type { StoredSession } from '../app/types/score';
+// lib/sessionRepo.ts
+'use client';
 
-/* ---------- Scoring Types ---------- */
-// Raw input allowed from UI
-export type ArrowInput = 'M' | 'X' | number | null;
+import { db } from '@/lib/db';
+import type { StoredSession, ArrowScore } from '@/app/types/score';
 
-/* Convert UI value → numeric for DB */
-function toNumber(v: ArrowInput): number | null {
-  if (v === 'M') return 0;
-  if (v === 'X') return 10;
-  return v;
-}
+// Helper: convert ArrowScore to numeric value for totals
+export const arrowToNumber = (a: ArrowScore): number => {
+  if (a === null || a === 'M') return 0;
+  if (a === 'X') return 10;
+  return typeof a === 'number' ? a : 0;
+};
 
-/* ---------- Create Session ---------- */
-export async function createSession(params: {
-  archerName?: string;
-  archerSurname?: string;
-  bowType?: 'COMPOUND' | 'RECURVE' | 'BAREBOW';
-  distance: number;
-  totalEnds: number;
-  sessionType?: 'PRACTICE' | 'TOURNAMENT';
-}) {
-  const id = crypto.randomUUID();
-
-  const session: StoredSession = {
-    id,
-    archerName: params.archerName ?? 'New',
-    archerSurname: params.archerSurname ?? 'Archer',
-    bowType: params.bowType ?? 'COMPOUND',
-
-    distance: params.distance,
-    totalEnds: params.totalEnds,
-
+// Create a new session
+export const createSession = async (
+  userId: string,
+  archerName: string,
+  archerSurname: string,
+  bowType: 'COMPOUND' | 'RECURVE' | 'BAREBOW',
+  distance: number,
+  totalEnds: number,
+  arrowsPerEnd: number,
+  sessionType: 'PRACTICE' | 'TOURNAMENT'
+): Promise<StoredSession> => {
+  const newSession: StoredSession = {
+    id: crypto.randomUUID(),
+    userId,
+    archerName,
+    archerSurname,
+    bowType,
+    distance,
+    totalEnds,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-
     synced: false,
     completed: false,
-
-    sessionType: params.sessionType ?? 'PRACTICE',
-
-    /* numeric score matrix */
-    scores: Array.from({ length: params.totalEnds }, () =>
-      Array.from({ length: 6 }, () => null)
+    sessionType,
+    scores: Array.from({ length: totalEnds }, () =>
+      Array.from({ length: arrowsPerEnd }, () => null as ArrowScore)
     ),
-
-    /* NEW: X counter */
     xCount: 0,
   };
 
-  await db.sessions.add(session);
-  return id;
-}
+  await db.sessions.add(newSession);
+  return newSession;
+};
 
-/* ---------- Save Arrow Score ---------- */
-export async function saveScore(
+// Save/update a score
+export const saveScore = async (
   sessionId: string,
   endIndex: number,
   arrowIndex: number,
-  value: ArrowInput
-) {
+  value: ArrowScore
+) => {
   const session = await db.sessions.get(sessionId);
   if (!session) return;
 
-  const numeric = toNumber(value);
-
-  const updated = session.scores.map(e => [...e]);
-  updated[endIndex][arrowIndex] = numeric;
-
-  session.scores = updated;
+  session.scores[endIndex][arrowIndex] = value;
   session.updatedAt = Date.now();
-
-  if (value === 'X') {
-    session.xCount += 1;
-  }
-
   await db.sessions.put(session);
-}
+};
 
-/* ---------- Load Session Scores ---------- */
-export async function loadSessionScores(
-  sessionId: string
-): Promise<(number | null)[][]> {
-  const session = await db.sessions.get(sessionId);
-  return session?.scores ?? [];
-}
-
-/* ---------- Delete Arrow + Reverse X ---------- */
-export async function deleteScore(
-  sessionId: string,
-  endIndex: number,
-  arrowIndex: number
-) {
-  const session = await db.sessions.get(sessionId);
-  if (!session) return;
-
-  const current = session.scores[endIndex][arrowIndex];
-
-  const updated = session.scores.map(e => [...e]);
-  updated[endIndex][arrowIndex] = null;
-
-  session.scores = updated;
-  session.updatedAt = Date.now();
-
-  if (current === 10) {
-    await recalcX(sessionId);
-  }
-
-  await db.sessions.put(session);
-}
-
-/* ---------- Recalc X (safe source of truth) ---------- */
-export async function recalcX(sessionId: string) {
-  const s = await db.sessions.get(sessionId);
-  if (!s) return;
-
-  const all = await db.scores
-    .where({ sessionId })
-    .toArray();
-
-  s.xCount = all.filter(a => a.value === 'X').length;
-  s.updatedAt = Date.now();
-
-  await db.sessions.put(s);
-}
-
-/* ---------- Mark Completed ---------- */
-export async function completeSession(sessionId: string) {
+// Complete a session
+export const completeSession = async (sessionId: string) => {
   const session = await db.sessions.get(sessionId);
   if (!session) return;
 
   session.completed = true;
   session.updatedAt = Date.now();
-
   await db.sessions.put(session);
-}
+};
 
-/* ---------- Validate before ending ---------- */
-export async function canEndSession(sessionId: string) {
-  const session = await db.sessions.get(sessionId);
-  if (!session) return false;
+// Load all sessions for a user
+export const loadUserSessions = async (userId: string) => {
+  return await db.sessions.where('userId').equals(userId).toArray();
+};
 
-  /* prevent partial ends */
-  const hasPartial = session.scores.some(end =>
-    end.some(a => a === null)
-  );
+// Optional: calculate total score for a session
+export const calculateTotal = (session: StoredSession): number => {
+  return session.scores.flat().reduce((sum: number, a: ArrowScore) => sum + arrowToNumber(a), 0);
+};
 
-  return !hasPartial;
-}
+// Optional: count Xs
+export const countXs = (session: StoredSession): number => {
+  return session.scores.flat().filter(a => a === 'X').length;
+};
+
+// Optional: count 10s (10 + X)
+export const countTens = (session: StoredSession): number => {
+  return session.scores.flat().filter(a => a === 10 || a === 'X').length;
+};

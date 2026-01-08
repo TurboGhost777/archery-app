@@ -1,4 +1,5 @@
-export type ArrowScore = 'M' | 'X' | number | null;
+// app/types/score.ts
+export type ArrowScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 'X' | 'M' | null;
 
 export type StoredScore = {
   sessionId: string;
@@ -10,6 +11,8 @@ export type StoredScore = {
 
 export type StoredSession = {
   id: string;
+  userId: string;
+
   archerName: string;
   archerSurname: string;
   bowType: 'COMPOUND' | 'RECURVE' | 'BAREBOW';
@@ -20,7 +23,7 @@ export type StoredSession = {
   synced: boolean;
   completed: boolean;
   sessionType?: 'PRACTICE' | 'TOURNAMENT';
-  scores: (number | null)[][]; // numeric values stored for scoring
+  scores: ArrowScore[][];// numeric values stored for scoring
   xCount: number; // total Xs in the session
 };
 
