@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
-import type { StoredSession, ArrowScore } from '../types/score';
+import { getLoggedInUser } from '@/lib/auth';
+import type { StoredSession } from '../types/score';
 import { computeFromScores } from '../types/score';
 
 import {
@@ -21,12 +22,10 @@ const DISTANCES = [18, 20, 30, 50, 70, 90];
 
 export default function StatsPage() {
   const router = useRouter();
+  const user = getLoggedInUser();
 
   const [darkMode, setDarkMode] = useState(true);
   const [sessions, setSessions] = useState<StoredSession[]>([]);
-  const [archerName, setArcherName] = useState('');
-  const [archerSurname, setArcherSurname] = useState('');
-  const [bowType, setBowType] = useState('');
 
   const [practiceStats, setPracticeStats] = useState<Record<number, number>>({});
   const [tournamentStats, setTournamentStats] = useState<Record<number, number>>({});
@@ -40,14 +39,20 @@ export default function StatsPage() {
   >([]);
 
   useEffect(() => {
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+
     async function load() {
-      const all = await db.sessions.toArray();
+      const all = await db.sessions
+        .where('userId')
+        .equals(user.username)
+        .toArray();
+
       if (!all.length) return;
 
       setSessions(all);
-      setArcherName(all[0].archerName);
-      setArcherSurname(all[0].archerSurname);
-      setBowType(all[0].bowType);
 
       const practice = all.filter(s => s.sessionType === 'PRACTICE');
       const tournament = all.filter(s => s.sessionType === 'TOURNAMENT');
@@ -65,7 +70,7 @@ export default function StatsPage() {
     }
 
     load();
-  }, []);
+  }, [user, router]);
 
   /* ---------------- Helpers ---------------- */
 
@@ -127,7 +132,7 @@ export default function StatsPage() {
   function computeXChartData(
     practice: StoredSession[],
     tournament: StoredSession[]
-  ): { distance: number; Practice: number; Tournament: number }[] {
+  ) {
     return DISTANCES.map(d => {
       const practiceX = practice
         .filter(s => s.distance === d)
@@ -183,9 +188,9 @@ export default function StatsPage() {
       {/* Header */}
       <div className="max-w-5xl mx-auto text-center mb-6">
         <h1 className="text-3xl font-extrabold">
-          {archerName} {archerSurname}
+          {user?.name} {user?.surname}
         </h1>
-        <p className="opacity-80">{bowType}</p>
+        <p className="opacity-80">All Sessions</p>
       </div>
 
       {/* Stat cards */}
@@ -201,7 +206,7 @@ export default function StatsPage() {
         </div>
       </div>
 
-      {/* Tables */}
+      {/* Distance Tables */}
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6 mb-8">
         {/* Practice */}
         <div className="bg-white text-black rounded-2xl shadow p-5">
@@ -244,9 +249,11 @@ export default function StatsPage() {
 
       {/* Xs Chart */}
       <div className="max-w-5xl mx-auto mt-8 bg-white p-5 rounded-2xl shadow text-black">
-        <h2 className="text-xl font-bold mb-3 text-indigo-700">Xs Per Distance</h2>
+        <h2 className="text-xl font-bold mb-3 text-indigo-700">
+          Xs Per Distance
+        </h2>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={xChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <BarChart data={xChartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="distance" />
             <YAxis />
