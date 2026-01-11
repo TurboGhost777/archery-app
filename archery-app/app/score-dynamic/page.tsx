@@ -97,15 +97,33 @@ export default function ScoreDynamicPage() {
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-black">
-            {session.distance}m · {session.sessionType}
-          </h1>
-          <div className="text-sm text-gray-700">
-            Score: {currentScore}/{maxScore} | 10s: {total10s} | Xs: {totalXs}
-          </div>
-        </div>
+<div className="flex justify-between items-center">
+  <div>
+    <h1 className="text-xl font-bold text-black">
+      {session.distance}m · {session.sessionType}
+    </h1>
+    <div className="text-sm text-gray-700">
+      Score: {currentScore}/{maxScore} | 10s: {total10s} | Xs: {totalXs}
+    </div>
+  </div>
+
+  <div className="flex gap-2">
+    <button
+      onClick={() => router.push(`/stats?sessionId=${session.id}`)}
+      className="px-4 py-2 bg-blue-600 text-white rounded"
+    >
+      View Stats
+    </button>
+
+    <button
+      onClick={() => router.push('/sessions')}
+      className="px-4 py-2 bg-gray-600 text-white rounded"
+    >
+      Back
+    </button>
+  </div>
+
+
 
         <button
           onClick={() => router.push('/sessions')}
