@@ -10,6 +10,8 @@ import type { StoredSession } from '../types/score';
 export default function SessionsPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<StoredSession[]>([]);
+  const [userName, setUserName] = useState('');
+  const [userSurname, setUserSurname] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -18,6 +20,9 @@ export default function SessionsPage() {
         router.replace('/login');
         return;
       }
+
+      setUserName(user.name);
+      setUserSurname(user.surname);
 
       /* 🔑 ONLY load this user's sessions */
       const userSessions = await db.sessions
@@ -34,17 +39,34 @@ export default function SessionsPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
-      <div className="flex justify-between items-center">
+      {/* Top bar */}
+      <div className="grid grid-cols-3 items-center">
+        {/* Left */}
         <h1 className="text-2xl font-bold text-black">
           My Sessions
         </h1>
 
-        <button
-          onClick={() => router.push('/sessions/new')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-        >
-          + New Session
-        </button>
+        {/* Center */}
+        <div className="text-center font-semibold text-gray-800">
+          {userName} {userSurname}
+        </div>
+
+        {/* Right */}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => router.push('/stats')}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg"
+          >
+            📊 Stats
+          </button>
+
+          <button
+            onClick={() => router.push('/sessions/new')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            + New Session
+          </button>
+        </div>
       </div>
 
       {sessions.length === 0 && (
