@@ -21,8 +21,8 @@ export default function SessionsPage() {
         return;
       }
 
-      setUserName(user.name);
-      setUserSurname(user.surname);
+      setUserName(user.archerName);
+      setUserSurname(user.archerSurname);
 
       const userSessions = await db.sessions
         .where('userId')
@@ -43,44 +43,49 @@ export default function SessionsPage() {
     router.replace('/login');
   };
 
+const user = getLoggedInUser();
+console.log('LOGGED IN USER:', user);
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
       {/* Top bar */}
-      <div className="grid grid-cols-3 items-center">
-        {/* Left */}
-        <h1 className="text-2xl font-bold text-black">
-          My Sessions
-        </h1>
+   {/* Top bar */}
+<div className="flex items-center justify-between bg-gray-900 rounded-lg px-4 py-3">
+  {/* Left */}
+  <div>
+    <h1 className="text-2xl font-bold text-white">
+      My Sessions
+    </h1>
+    <p className="text-sm text-gray-300">
+      🏹 {userName || 'Archer'} {userSurname}
+    </p>
+  </div>
 
-        {/* Center */}
-        <div className="text-center font-semibold text-gray-800">
-          {userName} {userSurname}
-        </div>
+  {/* Right */}
+  <div className="flex gap-2">
+    <button
+      onClick={() => router.push('/stats')}
+      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+    >
+      📊 Stats
+    </button>
 
-        {/* Right */}
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => router.push('/stats')}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg"
-          >
-            📊 Stats
-          </button>
+    <button
+      onClick={() => router.push('/sessions/new')}
+      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    >
+      + New Session
+    </button>
 
-          <button
-            onClick={() => router.push('/sessions/new')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-          >
-            + New Session
-          </button>
+    <button
+      onClick={handleLogout}
+      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+    >
+      🚪 Logout
+    </button>
+  </div>
+</div>
 
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg"
-          >
-            🚪 Logout
-          </button>
-        </div>
-      </div>
 
       {sessions.length === 0 && (
         <p className="text-gray-600">
