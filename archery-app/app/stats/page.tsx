@@ -171,7 +171,8 @@ export default function StatsPage() {
       {/* Top bar */}
       <div className="max-w-5xl mx-auto flex justify-between items-center mb-6">
         <button
-          onClick={() => router.push('/sessions')}
+            onClick={() => {
+    router.replace('/sessions');}}
           className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
         >
           ← Back to Sessions
