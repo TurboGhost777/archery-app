@@ -27,9 +27,12 @@ export class ArcheryDB extends Dexie {
   constructor() {
     super('archery-db');
 
-    /* 🔴 VERSION BUMP REQUIRED */
-    this.version(3).stores({
-      sessions: 'id, userId, createdAt, synced, completed',
+    /* ✅ VERSION BUMP */
+    this.version(4).stores({
+      // ✅ Composite index for FAST user + date queries
+      sessions:
+        'id, userId, createdAt, synced, completed, [userId+createdAt]',
+
       users: '++id, username, email, club, gender, createdAt',
     });
   }
