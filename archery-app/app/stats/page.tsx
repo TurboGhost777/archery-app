@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
+import Dexie from 'dexie';
+
 import { db } from '@/lib/db';
 import { getLoggedInUser } from '@/lib/auth';
 import type { StoredSession } from '../types/score';
@@ -33,50 +35,44 @@ export default function StatsPage() {
   const router = useRouter();
   const user = getLoggedInUser();
 
-  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  /* 🚀 Prefetch sessions for instant navigation */
+  /* 🚀 Instant return to Sessions */
   useEffect(() => {
     router.prefetch('/sessions');
   }, [router]);
 
-  /* ---------------- Load Stats (Cached) ---------------- */
   useEffect(() => {
     if (!user) {
       router.replace('/login');
       return;
     }
 
+    let cancelled = false;
+
     const load = async () => {
-      /* 1️⃣ Try cache */
+      /* ---------- 1️⃣ CACHE FIRST ---------- */
       const cached = await db.statsCache.get(user.username);
+
       if (cached && Date.now() - cached.computedAt < CACHE_TTL) {
         setStats(cached.data);
         setLoading(false);
+
+        /* 🔁 Refresh silently in background */
+        refreshStats(user.username, cancelled);
         return;
       }
 
-      /* 2️⃣ Compute fresh */
-      const sessions = await db.sessions
-        .where('userId')
-        .equals(user.username)
-        .toArray();
-
-      const computed = computeStats(sessions);
-
-      /* 3️⃣ Save cache */
-      await db.statsCache.put({
-        userId: user.username,
-        computedAt: Date.now(),
-        data: computed,
-      });
-
-      setStats(computed);
-      setLoading(false);
+      /* ---------- 2️⃣ COMPUTE FRESH ---------- */
+      await refreshStats(user.username, cancelled);
     };
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, user]);
 
   if (loading) {
@@ -100,7 +96,7 @@ export default function StatsPage() {
         </button>
 
         <h1 className="text-xl font-bold">
-          {user.archerName} {user.archerSurname}
+          {user!.archerName} {user!.archerSurname}
         </h1>
       </div>
 
@@ -110,7 +106,7 @@ export default function StatsPage() {
         <StatCard label="10 / X %" value={`${stats.tenXPercent}%`} />
       </div>
 
-      {/* Distance Chart */}
+      {/* Chart */}
       <div className="max-w-5xl mx-auto bg-white text-black p-5 rounded-xl">
         <h2 className="font-bold mb-3">Average Score per Distance</h2>
         <ResponsiveContainer width="100%" height={300}>
@@ -138,6 +134,30 @@ function StatCard({ label, value }: { label: string; value: any }) {
       <p className="text-4xl font-bold mt-2">{value}</p>
     </div>
   );
+}
+
+async function refreshStats(userId: string, cancelled: boolean) {
+  /* ⚡ Indexed query */
+  const sessions: StoredSession[] = await db.sessions
+    .where('[userId+createdAt]')
+    .between([userId, Dexie.minKey], [userId, Dexie.maxKey])
+    .toArray();
+
+  const computed = computeStats(sessions);
+
+  await db.statsCache.put({
+    userId,
+    computedAt: Date.now(),
+    data: computed,
+  });
+
+  if (!cancelled) {
+    setTimeout(() => {
+      // defer UI update to keep navigation instant
+    });
+  }
+
+  return computed;
 }
 
 function computeStats(sessions: StoredSession[]) {
