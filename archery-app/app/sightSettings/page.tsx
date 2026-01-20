@@ -1,15 +1,112 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Target } from 'lucide-react';
+
+import { Plus, Target, Trash2 } from 'lucide-react';
+
+import { getLoggedInUser } from '@/lib/auth';
+import { db, SightSetting } from '@/lib/db';
+import {
+  addSightSetting,
+  deleteSightSetting,
+} from '@/lib/sightSettingsRepo';
 
 export default function SightSettingsPage() {
-  const [selectedBow, setSelectedBow] = useState('');
+  const router = useRouter();
+  const user = getLoggedInUser();
 
+  const [bowName, setBowName] = useState('');
+  const [settings, setSettings] = useState<SightSetting[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [distance, setDistance] = useState('');
+  const [sightMark, setSightMark] = useState('');
+  const [notes, setNotes] = useState('');
+
+  /* ---------------- Auth Redirect ---------------- */
+  useEffect(() => {
+    if (!user) router.replace('/login');
+  }, [router, user]);
+
+  /* ---------------- Load Settings ---------------- */
+ useEffect(() => {
+  if (!user) return;
+
+  let cancelled = false;
+
+  // Only run if bowName actually exists
+  if (!bowName) {
+    setSettings([]); // clear settings once
+    return;
+  }
+
+  const fetchSettings = async () => {
+    setLoading(true);
+
+    const data = await db.sightSettings
+      .where('[userId+bowName]')
+      .equals([user.username, bowName])
+      .toArray();
+
+    if (!cancelled) {
+      // Only update if data actually changed
+      setSettings(prev => {
+        const same =
+          prev.length === data.length &&
+          prev.every((s, i) => s.id === data[i].id);
+        return same ? prev : data;
+      });
+      setLoading(false);
+    }
+  };
+
+  fetchSettings();
+
+  return () => {
+    cancelled = true;
+  };
+}, [bowName, user?.username]); // only rerun if bowName or username changes
+
+
+  /* ---------------- Add Setting ---------------- */
+  const handleAdd = async () => {
+    if (!user || !bowName || !distance || !sightMark) return;
+
+    const newSetting: Omit<SightSetting, 'id'> = {
+      userId: user.username,
+      bowName,
+      distance: Number(distance),
+      sightMark,
+      notes: notes || undefined,
+      createdAt: Date.now(),
+    };
+
+    const id = await addSightSetting(newSetting);
+
+    // Immediately update UI
+    setSettings(prev => [...prev, { id, ...newSetting }]);
+
+    setDistance('');
+    setSightMark('');
+    setNotes('');
+  };
+
+  /* ---------------- Delete Setting ---------------- */
+  const handleDelete = async (id?: number) => {
+    if (!id) return;
+
+    await deleteSightSetting(id);
+
+    setSettings(prev => prev.filter(s => s.id !== id));
+  };
+
+  /* ======================= UI ======================= */
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -19,68 +116,101 @@ export default function SightSettingsPage() {
       </div>
 
       {/* Bow Selector */}
-      <Card className="rounded-2xl shadow-sm">
-        <CardContent className="p-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="bow">Select Bow</Label>
-            <Input
-              id="bow"
-              placeholder="e.g. Hoyt Vantage Elite"
-              value={selectedBow}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSelectedBow(e.target.value)
-                       }
-            />
-          </div>
+      <Card className="rounded-2xl">
+        <CardContent className="p-6 space-y-2">
+          <Label>Bow Name</Label>
+          <Input
+            placeholder="e.g. Hoyt Vantage Elite"
+            value={bowName}
+            onChange={e => setBowName(e.target.value)}
+          />
         </CardContent>
       </Card>
 
-      {/* Add Sight Setting */}
-      <Card className="rounded-2xl shadow-sm">
-        <CardContent className="p-6 space-y-6">
+      {/* Add Setting */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-6 space-y-4">
           <h2 className="text-xl font-medium">Add Sight Setting</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="distance">Distance</Label>
-              <Input id="distance" placeholder="e.g. 20m" />
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <Label>Distance (m)</Label>
+              <Input
+                type="number"
+                value={distance}
+                onChange={e => setDistance(e.target.value)}
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="sight">Sight Mark</Label>
-              <Input id="sight" placeholder="e.g. 3.2" />
+            <div>
+              <Label>Sight Mark</Label>
+              <Input
+                value={sightMark}
+                onChange={e => setSightMark(e.target.value)}
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Input id="notes" placeholder="Optional" />
+            <div>
+              <Label>Notes</Label>
+              <Input
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+              />
             </div>
           </div>
 
-          <Button className="flex items-center gap-2">
+          <Button
+            onClick={handleAdd}
+            disabled={!bowName || !distance || !sightMark}
+            className="flex gap-2"
+          >
             <Plus className="w-4 h-4" />
             Add Setting
           </Button>
         </CardContent>
       </Card>
 
-      {/* Stored Settings (UI Placeholder) */}
-      <Card className="rounded-2xl shadow-sm">
+      {/* Stored Settings */}
+      <Card className="rounded-2xl">
         <CardContent className="p-6 space-y-4">
           <h2 className="text-xl font-medium">Stored Settings</h2>
 
-          <div className="text-sm text-muted-foreground">
-            Sight settings for the selected bow will appear here.
-          </div>
+          {!bowName && (
+            <p className="text-sm text-muted-foreground">
+              Select a bow to view saved settings.
+            </p>
+          )}
 
-          {/* Example Row */}
-          <div className="flex justify-between items-center border rounded-xl p-4">
-            <div>
-              <div className="font-medium">20m</div>
-              <div className="text-sm text-muted-foreground">Sight: 3.2</div>
+          {loading && <p className="text-sm">Loading…</p>}
+
+          {settings.map(s => (
+            <div
+              key={s.id}
+              className="flex justify-between items-center border rounded-xl p-4"
+            >
+              <div>
+                <div className="font-medium">{s.distance}m</div>
+                <div className="text-sm text-muted-foreground">
+                  Sight: {s.sightMark}
+                  {s.notes && ` • ${s.notes}`}
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDelete(s.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
-            <Button variant="outline" size="sm">Edit</Button>
-          </div>
+          ))}
+
+          {bowName && !loading && settings.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No sight settings saved for this bow.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

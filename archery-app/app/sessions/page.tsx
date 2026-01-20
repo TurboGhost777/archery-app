@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Dexie from 'dexie';
 
-import { db } from '@/lib/db';
 import { getLoggedInUser } from '@/lib/auth';
-import type { StoredSession } from '../types/score';
+import { db, StoredSession } from '@/lib/db';
+
 
 const SESSION_CACHE_TTL = 30_000; // 30 seconds
 
@@ -104,7 +104,7 @@ export default function SessionsPage() {
           </button>
 
           <button
-            onClick={() => router.push('/sight-settings')}
+            onClick={() => router.push('/sightSettings')}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
           >
             🎯 Sight Settings

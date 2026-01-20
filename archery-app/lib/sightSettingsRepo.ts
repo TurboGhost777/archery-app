@@ -1,26 +1,52 @@
-import { db } from '@/lib/db';
-import type { SightSettings } from '@/lib/db';
+// lib/sightSettingsRepo.ts
+import { db, type SightSetting } from '@/lib/db';
 
-export async function saveSightSettings(
-  settings: Omit<SightSettings, 'id' | 'createdAt' | 'updatedAt'>
+/* =======================
+   READ
+======================= */
+
+export async function getSightSettingsForBow(
+  userId: string,
+  bowName: string
+): Promise<SightSetting[]> {
+  return db.sightSettings
+    .where('[userId+bowName]')
+    .equals([userId, bowName])
+    .sortBy('distance');
+}
+
+/* =======================
+   CREATE
+======================= */
+
+export async function addSightSetting(
+  data: Omit<SightSetting, 'id' | 'createdAt' | 'updatedAt'>
 ) {
-  const now = Date.now();
+  return db.sightSettings.add({
+    ...data,
+    createdAt: Date.now(), // number
+    updatedAt: Date.now(), // number
+  });
+}
 
-  const existing = await db.sightSettings
-    .where('[userId+bowId]')
-    .equals([settings.userId, settings.bowId])
-    .first();
+/* =======================
+   UPDATE
+======================= */
 
-  if (existing) {
-    await db.sightSettings.update(existing.id!, {
-      ...settings,
-      updatedAt: now,
-    });
-  } else {
-    await db.sightSettings.add({
-      ...settings,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
+export async function updateSightSetting(
+  id: number,
+  data: Partial<SightSetting>
+) {
+  return db.sightSettings.update(id, {
+    ...data,
+    updatedAt: Date.now(),
+  });
+}
+
+/* =======================
+   DELETE
+======================= */
+
+export async function deleteSightSetting(id: number) {
+  return db.sightSettings.delete(id);
 }
