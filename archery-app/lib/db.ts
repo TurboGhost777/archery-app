@@ -30,14 +30,15 @@ export interface SightSetting {
   updatedAt?: number;
 }
 
-export interface StoredSession {
+/* ---------- DB SESSION (PERSISTENCE ONLY) ---------- */
+export interface DBSession {
   id?: number;
   userId: string;
   distance: number;
   sessionType: 'PRACTICE' | 'TOURNAMENT';
   totalEnds: number;
   bowType: string;
-  scores: number[][]; // 2D array [end][arrow]
+  scores: number[][];
   completed: boolean;
   synced?: boolean;
   createdAt: number;
@@ -46,25 +47,29 @@ export interface StoredSession {
   archerSurname?: string;
 }
 
+/* ---------- STATS CACHE ---------- */
+export interface StatsCache {
+  userId: string;
+  computedAt: number;
+  data: any;
+}
+
 /* ---------- DB ---------- */
 export class ArcheryDB extends Dexie {
   users!: Table<User, number>;
-  sessions!: Table<StoredSession, number>;
+  sessions!: Table<DBSession, number>;
   sightSettings!: Table<SightSetting, number>;
+  statsCache!: Table<StatsCache, string>;
 
   constructor() {
     super('archery-db');
 
-    this.version(5).stores({
-      // 🔐 Auth
+    this.version(6).stores({
       users: '++id, username, createdAt',
-
-      // 🏹 Sessions
       sessions: '++id, userId, createdAt, [userId+createdAt]',
-
-      // 🎯 Sight settings (per user + bow)
       sightSettings:
         '++id, userId, bowName, distance, createdAt, [userId+bowName]',
+      statsCache: 'userId',
     });
   }
 }
