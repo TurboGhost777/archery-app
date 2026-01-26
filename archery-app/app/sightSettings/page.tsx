@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Plus, Target, Trash2 } from 'lucide-react';
+import { Plus, Target, Trash2, ArrowLeft } from 'lucide-react';
 
 import { getLoggedInUser } from '@/lib/auth';
 import { db, SightSetting } from '@/lib/db';
@@ -109,11 +109,22 @@ export default function SightSettingsPage() {
   /* ======================= UI ======================= */
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Target className="w-8 h-8" />
-        <h1 className="text-3xl font-semibold">Sight Settings</h1>
-      </div>
+     {/* Header */}
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-3">
+    <Target className="w-8 h-8" />
+    <h1 className="text-3xl font-semibold">Sight Settings</h1>
+  </div>
+
+  <Button
+    variant="outline"
+    onClick={() => router.push('/sessions')}
+    className="flex items-center gap-2"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Sessions
+  </Button>
+</div>
 
       {/* Bow Selector */}
       <Card className="rounded-2xl">
