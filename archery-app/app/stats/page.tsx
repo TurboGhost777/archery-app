@@ -138,10 +138,21 @@ function StatCard({ label, value }: { label: string; value: any }) {
 
 async function refreshStats(userId: string, cancelled: boolean) {
   /* ⚡ Indexed query */
-  const sessions: StoredSession[] = await db.sessions
+  const dbSessions = await db.sessions
     .where('[userId+createdAt]')
     .between([userId, Dexie.minKey], [userId, Dexie.maxKey])
     .toArray();
+
+  const sessions: StoredSession[] = dbSessions.map(s => {
+    const computed = computeFromScores(s as unknown as StoredSession);
+    return {
+      ...s,
+      id: String(s.id),
+      xCount: computed.xCount,
+      archerName: s.archerName || '',
+      archerSurname: s.archerSurname || '',
+    } as StoredSession;
+  });
 
   const computed = computeStats(sessions);
 

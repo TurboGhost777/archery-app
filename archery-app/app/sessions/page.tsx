@@ -5,7 +5,18 @@ import { useRouter } from 'next/navigation';
 import Dexie from 'dexie';
 
 import { getLoggedInUser } from '@/lib/auth';
-import { db, StoredSession } from '@/lib/db';
+import { db } from '@/lib/db';
+
+type StoredSession = {
+  id: string;
+  userId: string;
+  distance: number;
+  sessionType?: string;
+  totalEnds: number;
+  bowType: string;
+  completed: boolean;
+  createdAt: number;
+};
 
 
 const SESSION_CACHE_TTL = 30_000; // 30 seconds
@@ -58,7 +69,10 @@ export default function SessionsPage() {
         .toArray();
 
       if (!cancelled) {
-        setSessions(freshSessions);
+        setSessions(freshSessions.map(session => ({
+          ...session,
+          id: String(session.id),
+        })));
         setLoading(false);
 
         /* ---------- 3️⃣ UPDATE CACHE ---------- */
